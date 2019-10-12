@@ -1,7 +1,7 @@
 use std::env;
 use std::process;
 
-use rs9cc::libc;
+use rs9cc::tokenizer;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,50 +15,33 @@ fn main() {
     println!(".global main");
     println!("main:");
 
-    let result_fst_num = libc::strtol(&args[1], 10);
-    if result_fst_num.is_err() {
-        eprintln!("{}", result_fst_num.err().unwrap());
+    let mut tokenizer = tokenizer::Tokenizer::new(&args[1]);
+    let fst_num_op = tokenizer.expect_number();
+    if fst_num_op.is_none() {
+        eprintln!(
+            "最初のトークンが数字ではありません: [{}]",
+            tokenizer.cur_str(),
+        );
         process::exit(1)
     }
 
-    let mut rest_s: String;
-    let (num, tmp_s) = result_fst_num.ok().unwrap();
-    rest_s = tmp_s;
-    println!("  mov rax, {}", num);
+    let fst_num = fst_num_op.unwrap();
+    println!("  mov rax, {}", fst_num);
 
-    while !rest_s.is_empty() {
-        if &rest_s[0..1] == "+" {
-            let result = libc::strtol(&String::from(&rest_s[1..]), 10);
-            if result.is_err() {
-                eprintln!("{}", result.err().unwrap());
-                process::exit(1)
-            }
-
-            let (num, s) = result.ok().unwrap();
-            rest_s = s;
+    while !tokenizer.expect_eof() {
+        if tokenizer.expect_op("+") {
+            let num = tokenizer.expect_number().unwrap();
             println!("  add rax, {}", num);
-
             continue;
-        }
-
-        if &rest_s[0..1] == "-" {
-            let result = libc::strtol(&String::from(&rest_s[1..]), 10);
-            if result.is_err() {
-                eprintln!("{}", result.err().unwrap());
-                process::exit(1)
-            }
-
-            let (num, s) = result.ok().unwrap();
-            rest_s = s;
+        } else if tokenizer.expect_op("-") {
+            let num = tokenizer.expect_number().unwrap();
             println!("  sub rax, {}", num);
-
             continue;
+        } else {
+            eprintln!("予期しない文字列です: [{}]", tokenizer.cur_str());
+            process::exit(1);
         }
-
-        eprintln!("予期しない文字列です: [{}]", rest_s);
-        process::exit(1)
     }
-
     println!("  ret");
     process::exit(0);
 }
