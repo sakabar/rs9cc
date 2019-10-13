@@ -19,9 +19,10 @@ fn main() {
     let fst_num_op = tokenizer.expect_number();
     if fst_num_op.is_none() {
         eprintln!(
-            "最初のトークンが数字ではありません: [{}]",
-            tokenizer.cur_str(),
+            "{}",
+            tokenizer.error_at_cur("最初のトークンが数字ではありません")
         );
+
         process::exit(1)
     }
 
@@ -30,15 +31,27 @@ fn main() {
 
     while !tokenizer.expect_eof() {
         if tokenizer.expect_op("+") {
-            let num = tokenizer.expect_number().unwrap();
+            let num_op = tokenizer.expect_number();
+            if num_op.is_none() {
+                eprintln!("{}", tokenizer.error_at_cur("予期しない文字列です"));
+                process::exit(1);
+            }
+
+            let num = num_op.unwrap();
             println!("  add rax, {}", num);
             continue;
         } else if tokenizer.expect_op("-") {
-            let num = tokenizer.expect_number().unwrap();
+            let num_op = tokenizer.expect_number();
+            if num_op.is_none() {
+                eprintln!("{}", tokenizer.error_at_cur("予期しない文字列です"));
+                process::exit(1);
+            }
+
+            let num = num_op.unwrap();
             println!("  sub rax, {}", num);
             continue;
         } else {
-            eprintln!("予期しない文字列です: [{}]", tokenizer.cur_str());
+            eprintln!("{}", tokenizer.error_at_cur("予期しない文字列です"));
             process::exit(1);
         }
     }
